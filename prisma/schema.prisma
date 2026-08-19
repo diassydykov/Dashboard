@@ -1,0 +1,350 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  super_admin
+  school_admin
+  viewer
+}
+
+enum Shift {
+  FIRST
+  SECOND
+}
+
+enum ScheduleKind {
+  draft
+  published
+}
+
+enum ImportType {
+  classes
+  teachers
+  rooms
+  workload
+  norms
+}
+
+enum ImportStatus {
+  previewed
+  applied
+  failed
+}
+
+model School {
+  id        String   @id @default(cuid())
+  name      String
+  code      String   @unique
+  timezone  String   @default("Asia/Almaty")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  profiles           UserProfile[]
+  years              AcademicYear[]
+  grades             Grade[]
+  teachers           Teacher[]
+  subjects           Subject[]
+  rooms              Room[]
+  classGroups        ClassGroup[]
+  durationProfiles   LessonDurationProfile[]
+  bellProfiles       BellScheduleProfile[]
+  requirements       CurriculumRequirement[]
+  normVersions       CurriculumNormVersion[]
+  scheduleVersions   ScheduleVersion[]
+  lessons            Lesson[]
+  imports            ImportBatch[]
+}
+
+model UserProfile {
+  id              String   @id @default(cuid())
+  userId          String   @unique
+  email           String
+  fullName        String
+  role            Role     @default(viewer)
+  schoolId        String?
+  currentSchoolId String?
+  school          School?  @relation(fields: [schoolId], references: [id], onDelete: SetNull)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([schoolId])
+}
+
+model AcademicYear {
+  id              String   @id @default(cuid())
+  schoolId        String
+  school          School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name            String
+  startDate       DateTime @db.Date
+  endDate         DateTime @db.Date
+  weekCount       Int      @default(34)
+  includeSaturday Boolean  @default(false)
+  lessonsPerDay   Int      @default(7)
+  isActive        Boolean  @default(false)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  classGroups      ClassGroup[]
+  durationProfiles LessonDurationProfile[]
+  bellProfiles     BellScheduleProfile[]
+  requirements     CurriculumRequirement[]
+  normVersions     CurriculumNormVersion[]
+  scheduleVersions ScheduleVersion[]
+  lessons          Lesson[]
+  imports          ImportBatch[]
+
+  @@unique([schoolId, name])
+  @@index([schoolId, isActive])
+}
+
+model Grade {
+  id          String       @id @default(cuid())
+  schoolId    String
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  number      Int
+  classGroups ClassGroup[]
+
+  @@unique([schoolId, number])
+}
+
+model ClassGroup {
+  id                String                 @id @default(cuid())
+  schoolId          String
+  yearId            String
+  gradeId           String
+  letter            String
+  language          String
+  shift             Shift
+  durationProfileId String?
+  school            School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  year              AcademicYear           @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  grade             Grade                  @relation(fields: [gradeId], references: [id], onDelete: Restrict)
+  durationProfile   LessonDurationProfile? @relation(fields: [durationProfileId], references: [id], onDelete: SetNull)
+  requirements      CurriculumRequirement[]
+  lessons           Lesson[]
+
+  @@unique([yearId, gradeId, letter])
+  @@index([schoolId, yearId])
+}
+
+model Teacher {
+  id           String          @id @default(cuid())
+  schoolId     String
+  school       School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  fullName     String
+  shortName    String
+  email        String?
+  phone        String?
+  isActive     Boolean         @default(true)
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+  subjects     TeacherSubject[]
+  requirements CurriculumRequirement[]
+  lessons      Lesson[]
+
+  @@unique([schoolId, fullName])
+  @@index([schoolId, isActive])
+}
+
+model Subject {
+  id           String          @id @default(cuid())
+  schoolId     String
+  school       School          @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name         String
+  shortName    String?
+  teachers     TeacherSubject[]
+  requirements CurriculumRequirement[]
+  lessons      Lesson[]
+  normItems    CurriculumNormItem[]
+
+  @@unique([schoolId, name])
+}
+
+model TeacherSubject {
+  teacherId String
+  subjectId String
+  teacher   Teacher @relation(fields: [teacherId], references: [id], onDelete: Cascade)
+  subject   Subject @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@id([teacherId, subjectId])
+}
+
+model Room {
+  id           String                  @id @default(cuid())
+  schoolId     String
+  school       School                  @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  name         String
+  capacity     Int?
+  requirements CurriculumRequirement[]
+  lessons      Lesson[]
+
+  @@unique([schoolId, name])
+}
+
+model LessonDurationProfile {
+  id          String       @id @default(cuid())
+  schoolId    String
+  yearId      String
+  name        String
+  durationMin Int
+  gradeFrom   Int
+  gradeTo     Int
+  shift       Shift?
+  school      School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  year        AcademicYear @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  classGroups ClassGroup[]
+
+  @@index([yearId, shift])
+}
+
+model BellScheduleProfile {
+  id        String       @id @default(cuid())
+  schoolId  String
+  yearId    String
+  name      String
+  shift     Shift
+  gradeFrom Int
+  gradeTo   Int
+  school    School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  year      AcademicYear @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  slots     BellSlot[]
+
+  @@index([yearId, shift])
+}
+
+model BellSlot {
+  id          String               @id @default(cuid())
+  profileId   String
+  weekday     Int
+  lessonIndex Int
+  startTime   String
+  endTime     String
+  profile     BellScheduleProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, weekday, lessonIndex])
+  @@index([profileId, weekday])
+}
+
+model CurriculumNormVersion {
+  id          String               @id @default(cuid())
+  schoolId    String
+  yearId      String
+  name        String
+  isActive    Boolean              @default(false)
+  source      String
+  notes       String?
+  createdAt   DateTime             @default(now())
+  school      School               @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  year        AcademicYear         @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  items       CurriculumNormItem[]
+
+  @@index([yearId, isActive])
+}
+
+model CurriculumNormItem {
+  id           String                 @id @default(cuid())
+  versionId    String
+  gradeNumber  Int
+  language     String?
+  planType     String?
+  subjectName  String
+  subjectId    String?
+  hoursPerWeek Decimal                @db.Decimal(4, 1)
+  version      CurriculumNormVersion  @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  subject      Subject?               @relation(fields: [subjectId], references: [id], onDelete: SetNull)
+
+  @@index([versionId, gradeNumber])
+}
+
+model CurriculumRequirement {
+  id                 String       @id @default(cuid())
+  schoolId           String
+  yearId             String
+  classGroupId       String
+  subjectId          String
+  hoursPerWeek       Decimal      @db.Decimal(4, 1)
+  preferredTeacherId String?
+  preferredRoomId    String?
+  allowedDays        Int[]
+  school             School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  year               AcademicYear @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  classGroup         ClassGroup   @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  subject            Subject      @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  preferredTeacher   Teacher?     @relation(fields: [preferredTeacherId], references: [id], onDelete: SetNull)
+  preferredRoom      Room?        @relation(fields: [preferredRoomId], references: [id], onDelete: SetNull)
+  lessons            Lesson[]
+
+  @@unique([yearId, classGroupId, subjectId])
+  @@index([schoolId, yearId])
+}
+
+model ScheduleVersion {
+  id        String       @id @default(cuid())
+  schoolId  String
+  yearId    String
+  kind      ScheduleKind
+  name      String
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  school    School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  year      AcademicYear @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  lessons   Lesson[]
+
+  @@unique([yearId, kind])
+  @@index([schoolId, yearId])
+}
+
+model Lesson {
+  id             String                 @id @default(cuid())
+  schoolId       String
+  yearId         String
+  versionId      String
+  classGroupId   String
+  subjectId      String
+  teacherId      String
+  roomId         String?
+  requirementId  String?
+  weekday        Int
+  shift          Shift
+  lessonIndex    Int
+  startTime      String
+  endTime        String
+  school         School                 @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  year           AcademicYear           @relation(fields: [yearId], references: [id], onDelete: Cascade)
+  version        ScheduleVersion        @relation(fields: [versionId], references: [id], onDelete: Cascade)
+  classGroup     ClassGroup             @relation(fields: [classGroupId], references: [id], onDelete: Cascade)
+  subject        Subject                @relation(fields: [subjectId], references: [id], onDelete: Restrict)
+  teacher        Teacher                @relation(fields: [teacherId], references: [id], onDelete: Restrict)
+  room           Room?                  @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  requirement    CurriculumRequirement? @relation(fields: [requirementId], references: [id], onDelete: SetNull)
+
+  @@unique([versionId, classGroupId, weekday, lessonIndex])
+  @@index([versionId, teacherId, weekday])
+  @@index([versionId, roomId, weekday])
+  @@index([schoolId, yearId, versionId])
+}
+
+model ImportBatch {
+  id         String       @id @default(cuid())
+  schoolId   String
+  yearId     String?
+  type       ImportType
+  status     ImportStatus
+  fileName   String
+  rowCount   Int          @default(0)
+  errorCount Int          @default(0)
+  reportJson Json
+  createdBy  String
+  createdAt  DateTime     @default(now())
+  school     School       @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  year       AcademicYear? @relation(fields: [yearId], references: [id], onDelete: SetNull)
+
+  @@index([schoolId, createdAt])
+}

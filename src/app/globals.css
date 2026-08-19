@@ -1,0 +1,77 @@
+@import "tailwindcss";
+
+:root {
+  --ink: #17202b;
+  --ink-soft: #2b394a;
+  --paper: #f4efe6;
+  --paper-2: #ebe3d6;
+  --line: #d5cbb8;
+  --copper: #c45c26;
+  --copper-dark: #9c4316;
+  --pine: #2d6a4f;
+  --danger: #b42318;
+  --warn: #b45309;
+}
+
+@theme inline {
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-serif: var(--font-source), ui-serif, Georgia, serif;
+  --color-ink: var(--ink);
+  --color-ink-soft: var(--ink-soft);
+  --color-paper: var(--paper);
+  --color-paper-2: var(--paper-2);
+  --color-line: var(--line);
+  --color-copper: var(--copper);
+  --color-copper-dark: var(--copper-dark);
+  --color-pine: var(--pine);
+  --color-danger: var(--danger);
+  --color-warn: var(--warn);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--font-sans);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: #e8c9b3;
+}
+
+.print-only {
+  display: none;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  .print-only {
+    display: block !important;
+  }
+  body {
+    background: white;
+  }
+}
