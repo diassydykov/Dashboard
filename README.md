@@ -99,10 +99,18 @@ npm run build        # prisma generate + migrate deploy + next build
 
 ## Vercel
 
-1. Импортируйте репозиторий в Vercel.
-2. Задайте те же переменные окружения, что в `.env.example` (без пустого `SUPABASE_SERVICE_ROLE_KEY`, если не нужен сид).
-3. Build Command: `npm run build` (уже вызывает `prisma migrate deploy`).
-4. В Supabase → Authentication → URL Configuration добавьте домен Vercel в Redirect URLs.
+В **Settings → Environment Variables** для Production (и Preview) задайте:
+
+| Переменная | Откуда в Supabase |
+| --- | --- |
+| `NEXT_PUBLIC_SUPABASE_URL` | Project URL |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon / public key |
+| `DATABASE_URL` | Connect → Transaction pooler, порт **6543**, добавьте `?pgbouncer=true` |
+| `DIRECT_URL` | Connect → Session / Direct, порт **5432** (без pgbouncer) |
+
+`DIRECT_URL` нужна для `prisma migrate deploy`. Если её нет, сборка подставит `DATABASE_URL`, но миграции через pooler часто ломаются — лучше задать обе.
+
+Затем: Build Command `npm run build`. В Supabase → Authentication → URL Configuration добавьте домен Vercel в Redirect URLs.
 
 Часовой пояс отображения: `Asia/Almaty`. Время уроков хранится как локальное `HH:mm`.
 
